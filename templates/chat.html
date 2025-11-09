@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Kafka Chat Dashboard{% endblock %}
+
+{% block content %}
+  <!-- LEFT: Room List -->
+  {% include "partials/rooms.html" %}
+
+  <!-- CENTER: Chat Box -->
+  {% include "partials/chatbox.html" %}
+
+  <!-- RIGHT: Knowledge Base -->
+  {% include "partials/knowledge.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let ws;
+  let username = "{{ username }}";
+  let currentRoom = "";
+
+  function joinRoom(room) {
+    if (ws) ws.close();
+
+    currentRoom = room;
+    ws = new WebSocket(`ws://${window.location.host}/ws/${room}/${username}`);
+
+    ws.onopen = () => {
+      document.getElementById("chatTitle").innerText = `Room: ${room}`;
+      document.getElementById("leaveBtn").classList.remove("hidden");
+      document.getElementById("messages").innerHTML = "";
+    };
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      const messages = document.getElementById("messages");
+      const newMsg = document.createElement("div");
+      newMsg.classList.add("mb-2");
+      newMsg.innerHTML = `<span class="font-semibold text-blue-400">${msg.from}:</span> ${msg.text}`;
+      messages.appendChild(newMsg);
+      messages.scrollTop = messages.scrollHeight;
+    };
+
+    ws.onclose = () => {
+      document.getElementById("leaveBtn").classList.add("hidden");
+    };
+  }
+
+  function sendMessage() {
+    const input = document.getElementById("messageInput");
+    const text = input.value.trim();
+    if (text && ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ text }));
+      input.value = "";
+    }
+  }
+
+  function leaveRoom() {
+    if (ws) ws.close();
+    document.getElementById("chatTitle").innerText = "Select a room to start chatting";
+    document.getElementById("messages").innerHTML = "";
+  }
+
+  function createRoom() {
+    const roomName = document.getElementById("newRoom").value.trim();
+    if (!roomName) return alert("Enter a room name!");
+    fetch(`/create_room/${roomName}`, { method: "POST" })
+      .then(res => res.json())
+      .then(() => window.location.reload());
+  }
+</script>
+{% endblock %}
