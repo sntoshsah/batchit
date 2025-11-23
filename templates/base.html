@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}BatChit{% endblock %}</title>
-
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
@@ -12,8 +11,24 @@
   <!-- Navbar -->
   <nav class="bg-gray-800 p-4 shadow-lg flex justify-between items-center">
     <h1 class="text-2xl font-bold text-blue-400">BatChit</h1>
-    <div class="text-sm text-gray-400">
-      Logged in as: <span class="font-semibold text-white">{{ username }}</span>
+    <div class="text-sm mt-4">
+      {% if username == "GuestUser" %}
+      <div class="bg-yellow-100 border-l-4 border-yellow-400 p-4 rounded-md flex items-center space-x-2">
+        <span class="text-yellow-800">
+          ⚠️ You are using a temporary account <strong>{{ username }}</strong>.
+        </span>
+        <a href="{{ login_url }}"
+          class="ml-auto bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded shadow text-sm">
+          Login
+        </a>
+      </div>
+      {% elif username %}
+      <div class="bg-green-100 border-l-4 border-green-400 p-4 rounded-md">
+        <span class="text-green-800">
+          Logged in as: <strong>{{ username }}</strong>
+        </span>
+      </div>
+      {% endif %}
     </div>
   </nav>
 
@@ -21,7 +36,7 @@
   <main class="flex flex-1 overflow-hidden">
     {% block content %}{% endblock %}
   </main>
-
   {% block scripts %}{% endblock %}
+  
 </body>
 </html>

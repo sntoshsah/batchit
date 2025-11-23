@@ -40,20 +40,35 @@ async def shutdown_event():
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     docs = os.listdir(DOCS_DIR)
+    username = request.cookies.get("username", "GuestUser")  # Temp user if no cookie
+
     return templates.TemplateResponse("chat.html", {
         "request": request,
         "rooms": ROOMS,
         "documents": docs,
-        "username": "GuestUser"
+        "username": username,
+        "login_url": "/login"  # Provide login page URL
     })
 
-@app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+@app.post("/upload", response_class=HTMLResponse)
+async def upload_file(request: Request, file: UploadFile = File(...)):
     path = os.path.join(DOCS_DIR, file.filename)
     print("Saving uploaded file to:", path)
     with open(path, "wb") as f:
         f.write(await file.read())
-    return file.filename
+
+    # After upload, list files again and render the template
+    docs = os.listdir(DOCS_DIR)
+    username = request.cookies.get("username", "GuestUser")
+    
+    return templates.TemplateResponse("chat.html", {
+        "request": request,
+        "rooms": ROOMS,
+        "documents": docs,
+        "username": username,
+        "login_url": "/login"
+    })
+
 
 @app.post("/create_room/{room_name}")
 async def create_room(room_name: str):
@@ -64,6 +79,15 @@ async def create_room(room_name: str):
 @app.get("/download/{filename}")
 async def download_file(filename: str):
     return FileResponse(os.path.join(DOCS_DIR, filename))
+
+@app.delete("/delete/{filename}")
+async def delete_file(filename: str):
+    path = os.path.join(DOCS_DIR, filename)
+    if os.path.exists(path):
+        os.remove(path)
+        return {"status": "deleted"}
+    return {"status": "file not found"}
+
 
 @app.websocket("/ws/{room}/{username}")
 async def websocket_endpoint(websocket: WebSocket, room: str, username: str):
@@ -82,6 +106,39 @@ async def websocket_endpoint(websocket: WebSocket, room: str, username: str):
         del rooms[room][username]
         if not rooms[room]:
             del rooms[room]
+
+
+@app.post("/login")
+async def login(request: Request):
+    # Implement login logic here
+    form = await request.form()
+    username = form.get("username")
+    return {"username": username}
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return templates.TemplateResponse("partials/_login.html", {"request": request})
+
+@app.get("/logout", response_class=HTMLResponse)
+async def logout_page(request: Request):
+    return templates.TemplateResponse("partials/_logout.html", {"request": request})
+
+@app.get("/register", response_class=HTMLResponse)
+async def register_page(request: Request):
+    return templates.TemplateResponse("partials/_register.html", {"request": request})
+
+@app.post("/register")
+async def register(request: Request):
+    # Implement registration logic here
+    form = await request.form()
+    username = form.get("username")
+    password = form.get("password")
+    confirm_password = form.get("confirm_password")
+    if password != confirm_password:
+        return {"error": "Passwords do not match"}
+    # Save user to database (not implemented)
+
+    return {"username": username}
 
 
 async def start_room_consumer(room: str):
