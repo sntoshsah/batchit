@@ -1,0 +1,23 @@
+<aside class="w-1/5 bg-gray-800 border-r border-gray-700 p-4 overflow-y-auto">
+  <h2 class="text-lg font-semibold mb-3">Available Rooms</h2>
+  <ul id="roomList" class="space-y-2">
+    {% for r in rooms %}
+      <li>
+        <button onclick="joinRoom('{{ r }}')" 
+          class="w-full text-left p-2 rounded-lg bg-gray-700 hover:bg-blue-600 hover:text-white transition">
+          {{ r }}
+        </button>
+      </li>
+    {% else %}
+      <p class="text-sm text-gray-400">No active rooms</p>
+    {% endfor %}
+  </ul>
+
+  <div class="mt-4">
+    <input id="newRoom" type="text" placeholder="New room name"
+           class="w-full p-2 mb-2 rounded-lg bg-gray-700 focus:outline-none">
+    <button onclick="createRoom()" class="w-full bg-blue-600 hover:bg-blue-700 p-2 rounded-lg">
+      Create Room
+    </button>
+  </div>
+</aside>

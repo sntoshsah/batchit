@@ -1,0 +1,6 @@
+fastapi[standard]
+sqlalchemy
+aiokafka
+redis
+ollama
+pymilvus[model, milvus_lite]

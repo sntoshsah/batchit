@@ -1,0 +1,9 @@
+.venv/
+uploaded_docs/
+*.log
+.DS_Store
+/static
+/volumes
+*.yaml
+__pycache__/
+*.pyc
