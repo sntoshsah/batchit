@@ -10,7 +10,7 @@
 <body class="bg-gray-900 text-white min-h-screen flex flex-col">
   <!-- Navbar -->
   <nav class="bg-gray-800 p-4 shadow-lg flex justify-between items-center">
-    <h1 class="text-2xl font-bold text-blue-400">BatChit</h1>
+    <h1 class="text-2xl font-bold text-blue-400"><a href="/">BatChit</a></h1>
     <div class="text-sm mt-4">
       {% if username == "GuestUser" %}
       <div class="bg-yellow-100 border-l-4 border-yellow-400 p-4 rounded-md flex items-center space-x-2">
@@ -37,6 +37,6 @@
     {% block content %}{% endblock %}
   </main>
   {% block scripts %}{% endblock %}
-  
+
 </body>
 </html>

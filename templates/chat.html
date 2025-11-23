@@ -73,25 +73,7 @@
       .then(res => res.json())
       .then(() => window.location.reload());
   }
-
-  function uploadKnowledge() {
-    const fileInput = document.getElementById("knowledgeFile");
-    const file = fileInput.files[0];
-    if (!file) return alert("Select a file to upload!");
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    fetch("/upload_knowledge", {
-      method: "POST",
-      body: formData
-    })
-    .then(res => res.json())
-    .then(data => {
-      alert(data.message);
-      fileInput.value = "";
-    });
-  }
+  
 </script>
 {% endblock %}
 

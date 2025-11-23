@@ -56,11 +56,9 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
     print("Saving uploaded file to:", path)
     with open(path, "wb") as f:
         f.write(await file.read())
-
-    # After upload, list files again and render the template
+# After upload, list files again and render the template
     docs = os.listdir(DOCS_DIR)
     username = request.cookies.get("username", "GuestUser")
-    
     return templates.TemplateResponse("chat.html", {
         "request": request,
         "rooms": ROOMS,
@@ -68,7 +66,6 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
         "username": username,
         "login_url": "/login"
     })
-
 
 @app.post("/create_room/{room_name}")
 async def create_room(room_name: str):
@@ -87,26 +84,6 @@ async def delete_file(filename: str):
         os.remove(path)
         return {"status": "deleted"}
     return {"status": "file not found"}
-
-
-@app.websocket("/ws/{room}/{username}")
-async def websocket_endpoint(websocket: WebSocket, room: str, username: str):
-    await websocket.accept()
-    if room not in rooms:
-        rooms[room] = {}
-        asyncio.create_task(start_room_consumer(room))
-    rooms[room][username] = websocket
-
-    try:
-        while True:
-            data = await websocket.receive_json()
-            message = {"room": room, "from": username, "text": data["text"]}
-            await producer.send_message(f"chat-{room}", message)
-    except WebSocketDisconnect:
-        del rooms[room][username]
-        if not rooms[room]:
-            del rooms[room]
-
 
 @app.post("/login")
 async def login(request: Request):
@@ -139,6 +116,28 @@ async def register(request: Request):
     # Save user to database (not implemented)
 
     return {"username": username}
+
+
+
+
+@app.websocket("/ws/{room}/{username}")
+async def websocket_endpoint(websocket: WebSocket, room: str, username: str):
+    await websocket.accept()
+    if room not in rooms:
+        rooms[room] = {}
+        asyncio.create_task(start_room_consumer(room))
+    rooms[room][username] = websocket
+
+    try:
+        while True:
+            data = await websocket.receive_json()
+            message = {"room": room, "from": username, "text": data["text"]}
+            await producer.send_message(f"chat-{room}", message)
+    except WebSocketDisconnect:
+        del rooms[room][username]
+        if not rooms[room]:
+            del rooms[room]
+
 
 
 async def start_room_consumer(room: str):
