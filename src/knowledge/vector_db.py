@@ -1,6 +1,6 @@
+import os
 from pymilvus import MilvusClient
-from pymilvus import model
-
+from data_preprocess import extract_text_from_pdf, embed_text
 from pymilvus import MilvusClient
 
 client = MilvusClient(
@@ -17,39 +17,42 @@ if not "KnowledgeDB" in databases:
         db_name="KnowledgeDB"
     )
 
+
 client.use_database("KnowledgeDB")
 
 collection_name = "knowledge_base"
 
+if client.has_collection(collection_name=collection_name):
+    client.drop_collection(collection_name=collection_name)
+
 if  not client.has_collection(collection_name="knowledge_base"):
     client.create_collection(
         collection_name=collection_name,
-        dimension=768,  # The vectors we will use in this demo has 768 dimensions
+        dimension=384,  # The vectors we will use in this demo has 384 dimensions
     )
 
 
-embedding_fn = model.DefaultEmbeddingFunction()
+file_list = os.listdir("uploaded_docs/")
+for file_name in file_list:
+    print("Processing file:", file_name)
+    file_path = os.path.join("uploaded_docs/", file_name)
+    extracted_text = extract_text_from_pdf(file_path)
+    embedding = embed_text(extracted_text)
+    text = extract_text_from_pdf(file_path)
+    vector = embed_text(text)
 
-docs = [
-    "Artificial intelligence was founded as an academic discipline in 1956.",
-    "Alan Turing was the first person to conduct substantial research in AI.",
-    "Born in Maida Vale, London, Turing was raised in southern England.",
-]
+    client.insert(
+        collection_name="knowledge_base",
+        data=[
+            {
+                "id": 1,
+                "text": text,
+                "vector": vector  # (should be a list of floats)
+            }
+        ]
+    )
 
-vectors = embedding_fn.encode_documents(docs)
-print("Dim:", embedding_fn.dim, vectors[0].shape)  # Dim: 768 (768,)
+# print(client.get_collection_stats(collection_name=collection_name))
 
-data = [
-    {"id": i, "vector": vectors[i], "text": docs[i], "subject": "history"}
-    for i in range(len(vectors))
-]
-
-print("Data has", len(data), "entities, each with fields: ", data[0].keys())
-print("Vector dim:", len(data[0]["vector"]))
-
-client.insert(
-    collection_name=collection_name,
-    data=data,
-)
-
-
+# print(client.list_collections())
+# print(client.describe_collection(collection_name=collection_name))

@@ -6,3 +6,4 @@ ollama
 pymilvus[model, milvus_lite]
 pyjwt
 websockets
+pypdf
