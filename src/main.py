@@ -1,4 +1,5 @@
-from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect, Request, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -7,9 +8,35 @@ from consumer import KafkaConsumerService
 import asyncio
 import os
 from fastapi.responses import FileResponse
+from models import User, Group, GroupUser, Message, Document, Topic
+from database import SessionLocal, engine, Base
+from schemas import UserCreate, GroupCreate, TopicCreate, MessageCreate, DocumentCreate, DocumentUpdate
+from sqlalchemy.orm import Session
+from ws_manager import manager
+
+Base.metadata.create_all(bind=engine)
+
 
 
 app = FastAPI()
+
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -21,9 +48,6 @@ consumers = {}   # {"room_name": KafkaConsumerService}
 ROOMS = ["general", "random"]
 DOCS_DIR = "uploaded_docs"
 os.makedirs(DOCS_DIR, exist_ok=True)
-
-# Track connected WebSocket clients by room
-# active_connections = {}
 
 
 @app.on_event("startup")
@@ -117,6 +141,82 @@ async def register(request: Request):
 
     return {"username": username}
 
+# ---- CRUD ----
+@app.post("/users/")
+def create_user(user: UserCreate, db: Session = Depends(get_db)):
+    db_user = User(username=user.username)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+@app.post("/groups/")
+def create_group(group: GroupCreate, db: Session = Depends(get_db)):
+    db_group = Group(name=group.name)
+    db.add(db_group)
+    db.commit()
+    db.refresh(db_group)
+    return db_group
+
+@app.post("/groups/{group_id}/join/{user_id}")
+def join_group(group_id: int, user_id: int, db: Session = Depends(get_db)):
+    gu = GroupUser(group_id=group_id, user_id=user_id)
+    db.add(gu)
+    db.commit()
+    return {"message": "User joined group"}
+
+@app.post("/topics/")
+def create_topic(topic: TopicCreate, db: Session = Depends(get_db)):
+    t = Topic(name=topic.name, group_id=topic.group_id)
+    db.add(t)
+    db.commit()
+    db.refresh(t)
+    return t
+
+@app.post("/messages/")
+def post_message(msg: MessageCreate, db: Session = Depends(get_db)):
+    message = Message(**msg.dict())
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+    # Notify via WebSocket
+    import asyncio
+    asyncio.create_task(manager.broadcast(msg.topic_id, f"New message from user {msg.user_id}: {msg.content}"))
+    return message
+
+@app.post("/documents/")
+def post_document(doc: DocumentCreate, db: Session = Depends(get_db)):
+    document = Document(**doc.dict())
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    import asyncio
+    asyncio.create_task(manager.broadcast(doc.topic_id, f"New document '{doc.title}' by user {doc.user_id}"))
+    return document
+
+@app.put("/documents/{doc_id}")
+def update_document(doc_id: int, doc_update: DocumentUpdate, db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        return {"error": "Document not found"}
+    doc.title = doc_update.title
+    doc.content = doc_update.content
+    db.commit()
+    db.refresh(doc)
+    import asyncio
+    asyncio.create_task(manager.broadcast(doc.topic_id, f"Document '{doc.title}' updated"))
+    return doc
+
+@app.delete("/documents/{doc_id}")
+def delete_document(doc_id: int, db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        return {"error": "Document not found"}
+    db.delete(doc)
+    db.commit()
+    import asyncio
+    asyncio.create_task(manager.broadcast(doc.topic_id, f"Document '{doc.title}' deleted"))
+    return {"message": "Document deleted"}
 
 
 
@@ -139,6 +239,9 @@ async def websocket_endpoint(websocket: WebSocket, room: str, username: str):
             del rooms[room]
 
 
+
+# Track connected WebSocket clients by room
+active_connections = {}
 
 async def start_room_consumer(room: str):
     topic = f"chat-{room}"
