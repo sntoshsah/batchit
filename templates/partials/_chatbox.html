@@ -9,9 +9,9 @@
   <div id="messages" class="flex-1 p-4 overflow-y-auto space-y-2"></div>
 
   <!-- Chat Input -->
-  <div class="p-4 bg-gray-800 border-t border-gray-700 flex">
-    <input id="messageInput" type="text" placeholder="Type a message..."
+  <form class="p-4 bg-gray-800 border-t border-gray-700 flex" onsubmit="sendMessage(); return false;">
+    <input id="messageInput" type="text" placeholder="Type a message..." type="submit"
            class="flex-1 p-2 rounded-lg bg-gray-700 focus:outline-none">
-    <button onclick="sendMessage()" class="ml-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg">Send</button>
-  </div>
+    <button type="submit" class="ml-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg">Send</button>
+  </form>
 </main>

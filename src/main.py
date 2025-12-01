@@ -1,7 +1,8 @@
+import bcrypt
 from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from producer import KafkaProducerService
 from consumer import KafkaConsumerService
@@ -114,7 +115,15 @@ async def login(request: Request):
     # Implement login logic here
     form = await request.form()
     username = form.get("username")
-    return {"username": username}
+    password = form.get("password")
+    db: Session = next(get_db())
+    user = db.query(User).filter(User.username == username).first()
+    if not user or not bcrypt.checkpw(password.encode('utf-8'), user.password_hash.encode('utf-8')):
+        return {"error": "Invalid credentials"}
+    response = RedirectResponse(url="/", status_code=302)
+    response.set_cookie(key="username", value=username)
+    return response
+
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
@@ -129,7 +138,7 @@ async def register_page(request: Request):
     return templates.TemplateResponse("partials/_register.html", {"request": request})
 
 @app.post("/register")
-async def register(request: Request):
+async def register(request: Request, db: Session = Depends(get_db)):
     # Implement registration logic here
     form = await request.form()
     username = form.get("username")
@@ -137,18 +146,23 @@ async def register(request: Request):
     confirm_password = form.get("confirm_password")
     if password != confirm_password:
         return {"error": "Passwords do not match"}
-    # Save user to database (not implemented)
-
-    return {"username": username}
-
-# ---- CRUD ----
-@app.post("/users/")
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = User(username=user.username)
-    db.add(db_user)
+    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    user = User(username=username, password_hash=str(password_hash.decode('utf-8')))
+    db.add(user)
     db.commit()
-    db.refresh(db_user)
-    return db_user
+    db.refresh(user)
+    return HTMLResponse("Registration successful. You can now log in.")
+
+
+# # ---- CRUD ----
+
+# @app.post("/users/")
+# def create_user(user: UserCreate, db: Session = Depends(get_db)):
+#     db_user = User(username=user.username)
+#     db.add(db_user)
+#     db.commit()
+#     db.refresh(db_user)
+#     return db_user
 
 @app.post("/groups/")
 def create_group(group: GroupCreate, db: Session = Depends(get_db)):
