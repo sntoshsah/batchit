@@ -3,9 +3,9 @@
   <ul id="roomList" class="space-y-2">
     {% for r in rooms %}
       <li>
-        <button onclick="joinRoom('{{ r }}')" 
+        <button onclick="joinRoom('{{ r.name }}')" 
           class="w-full text-left p-2 rounded-lg bg-gray-700 hover:bg-blue-600 hover:text-white transition">
-          {{ r }}
+          {{ r.name }}
         </button>
       </li>
     {% else %}
