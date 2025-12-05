@@ -15,6 +15,8 @@ from routes.users import users_router
 from routes.knowledge import knowledge_router
 from routes.room import room_router
 from models import Room
+from starlette.middleware.sessions import SessionMiddleware
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -29,11 +31,13 @@ app.include_router(room_router)
 
 app.add_middleware(
     CORSMiddleware,
+
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.add_middleware(SessionMiddleware, secret_key="abcd1234efgh5678")  # Replace with a secure key in production
 
 
 templates = Jinja2Templates(directory="templates")
@@ -58,53 +62,6 @@ async def shutdown_event():
     await producer.stop()
     for consumer in consumers.values():
         await consumer.consumer.stop()
-
-
-# @app.post("/messages/")
-# def post_message(msg: MessageCreate, db: Session = Depends(get_db)):
-#     message = Message(**msg.dict())
-#     db.add(message)
-#     db.commit()
-#     db.refresh(message)
-#     # Notify via WebSocket
-#     import asyncio
-#     asyncio.create_task(manager.broadcast(msg.topic_id, f"New message from user {msg.user_id}: {msg.content}"))
-#     return message
-
-# @app.post("/documents/")
-# def post_document(doc: DocumentCreate, db: Session = Depends(get_db)):
-#     document = Document(**doc.dict())
-#     db.add(document)
-#     db.commit()
-#     db.refresh(document)
-#     import asyncio
-#     asyncio.create_task(manager.broadcast(doc.topic_id, f"New document '{doc.title}' by user {doc.user_id}"))
-#     return document
-
-# @app.put("/documents/{doc_id}")
-# def update_document(doc_id: int, doc_update: DocumentUpdate, db: Session = Depends(get_db)):
-#     doc = db.query(Document).filter(Document.id == doc_id).first()
-#     if not doc:
-#         return {"error": "Document not found"}
-#     doc.title = doc_update.title
-#     doc.content = doc_update.content
-#     db.commit()
-#     db.refresh(doc)
-#     import asyncio
-#     asyncio.create_task(manager.broadcast(doc.topic_id, f"Document '{doc.title}' updated"))
-#     return doc
-
-# @app.delete("/documents/{doc_id}")
-# def delete_document(doc_id: int, db: Session = Depends(get_db)):
-#     doc = db.query(Document).filter(Document.id == doc_id).first()
-#     if not doc:
-#         return {"error": "Document not found"}
-#     db.delete(doc)
-#     db.commit()
-#     import asyncio
-#     asyncio.create_task(manager.broadcast(doc.topic_id, f"Document '{doc.title}' deleted"))
-#     return {"message": "Document deleted"}
-
 
 
 @app.websocket("/ws/{room}/{username}")
@@ -146,53 +103,6 @@ async def start_room_consumer(room: str):
 
     await consumer.start(handle_message)
 
-# @app.post("/messages/")
-# def post_message(msg: MessageCreate, db: Session = Depends(get_db)):
-#     message = Message(**msg.dict())
-#     db.add(message)
-#     db.commit()
-#     db.refresh(message)
-#     # Notify via WebSocket
-#     import asyncio
-#     asyncio.create_task(manager.broadcast(msg.topic_id, f"New message from user {msg.user_id}: {msg.content}"))
-#     return message
-
-# @app.post("/documents/")
-# def post_document(doc: DocumentCreate, db: Session = Depends(get_db)):
-#     document = Document(**doc.dict())
-#     db.add(document)
-#     db.commit()
-#     db.refresh(document)
-#     import asyncio
-#     asyncio.create_task(manager.broadcast(doc.topic_id, f"New document '{doc.title}' by user {doc.user_id}"))
-#     return document
-
-# @app.put("/documents/{doc_id}")
-# def update_document(doc_id: int, doc_update: DocumentUpdate, db: Session = Depends(get_db)):
-#     doc = db.query(Document).filter(Document.id == doc_id).first()
-#     if not doc:
-#         return {"error": "Document not found"}
-#     doc.title = doc_update.title
-#     doc.content = doc_update.content
-#     db.commit()
-#     db.refresh(doc)
-#     import asyncio
-#     asyncio.create_task(manager.broadcast(doc.topic_id, f"Document '{doc.title}' updated"))
-#     return doc
-
-# @app.delete("/documents/{doc_id}")
-# def delete_document(doc_id: int, db: Session = Depends(get_db)):
-#     doc = db.query(Document).filter(Document.id == doc_id).first()
-#     if not doc:
-#         return {"error": "Document not found"}
-#     db.delete(doc)
-#     db.commit()
-#     import asyncio
-#     asyncio.create_task(manager.broadcast(doc.topic_id, f"Document '{doc.title}' deleted"))
-#     return {"message": "Document deleted"}
-
-
-
 @app.websocket("/ws/{room}/{username}")
 async def websocket_endpoint(websocket: WebSocket, room: str, username: str, db: Session = Depends(get_db)):
     room_obj = db.query(Room).filter(Room.name == room).first()
@@ -215,6 +125,7 @@ async def websocket_endpoint(websocket: WebSocket, room: str, username: str, db:
         del rooms[room][username]
         if not rooms[room]:
             del rooms[room]
+
 
 
 async def start_room_consumer(room: str):

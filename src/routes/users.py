@@ -20,16 +20,17 @@ async def login_page(request: Request):
 
 @users_router.post("/login")
 async def login(request: Request, db: Session = Depends(get_db)):
-    # Implement login logic here
     form = await request.form()
     username = form.get("username")
     password = form.get("password")
-    db: Session = next(get_db())
+    # db: Session = next(get_db())
     user = db.query(User).filter(User.username == username).first()
     if not user or not bcrypt.checkpw(password.encode('utf-8'), user.hashed_password.encode('utf-8')):
         return {"error": "Invalid credentials"}
+    
     response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(key="username", value=username)
+    request.session["user_id"] = user.id
     return response
 
 @users_router.get("/logout", response_class=HTMLResponse)

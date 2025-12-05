@@ -8,3 +8,4 @@ pyjwt
 websockets
 pypdf
 bcrypt
+itsdangerous
